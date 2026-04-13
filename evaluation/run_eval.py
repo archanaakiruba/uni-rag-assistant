@@ -4,7 +4,7 @@ Evaluation runner — hits POST /ask for each test case, checks source overlap.
 Usage:
   python evaluation/run_eval.py [--url http://localhost:8000]
 
-Target: at least N-1/N test cases pass (currently 12/13).
+Target: at least N-1/N test cases pass.
 """
 
 from __future__ import annotations

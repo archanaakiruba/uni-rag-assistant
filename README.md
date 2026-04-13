@@ -1,8 +1,8 @@
-# ABC Uni RAG Assistant
+# University RAG Assistant
 
-A production-minded RAG backend that answers prospective student questions about IU International University's study programs, admissions, financing, and application process.
+A production-minded RAG backend that answers prospective student questions about study programs, admissions, financing, and application process.
 
-> **In one paragraph:** This is a hybrid RAG backend for answering prospective student questions about IU International University. It combines dense vector search and BM25 keyword search to retrieve the right *combination* of general policy, program-specific rules, and exception documents — then assembles them into a structured, labelled context block before passing to GPT-4o. The system supports multi-turn conversation with persistent user profiles, two early-exit guardrails, and an 8/8 evaluation pass rate on designed conflict cases.
+> **In one paragraph:** A hybrid RAG backend for answering prospective student questions about university admissions. It combines dense vector search (ChromaDB) and BM25 keyword search to retrieve the right *combination* of general policy, program-specific rules, and exception documents — then assembles them into a structured, labelled context block before passing to GPT-4o. The system supports multi-turn conversation with persistent user profiles, multi-stage guardrails across the pipeline, and a 13-case evaluation suite.
 
 ---
 
@@ -10,13 +10,14 @@ A production-minded RAG backend that answers prospective student questions about
 
 This system uses hybrid retrieval — combining dense vector search (ChromaDB) with sparse keyword search (BM25) — to assemble the right combination of general policy, program-specific rules, and exception documents before generating an answer.
 
-Most RAG systems retrieve the most semantically similar chunks. This system retrieves the most *relevant combination*: a general policy doc, a program-specific override, and an exception document may all be needed to answer a single question correctly.
+Not only the most semantically similar chunks, this system retrieves the most *relevant combination*: a general policy doc, a program-specific override, and an exception document may all be needed to answer a single question correctly.
 
 Key design decisions:
-- Metadata pre-filtering (before similarity search) narrows ChromaDB to program- and region-relevant chunks before ranking.
+- Metadata pre-filtering (before similarity search) narrows ChromaDB to relevant chunks before ranking — filtering by detected program (e.g. only MSc DS docs) and region (e.g. only non-EU or general docs), so similarity scoring operates on a focused candidate pool rather than all 72 chunks.
 - RRF fusion combines dense and sparse rankings without requiring weight tuning.
 - A metadata scoring heuristic boosts exception and program-specific chunks when the query intent signals they are needed.
 - Evidence buckets structure context into labelled sections before passing to GPT-4o, so the model sees [General Policy] / [Program-Specific] / [Exceptions] / [Process] explicitly rather than an unordered chunk dump.
+- Multi-stage guardrails protect quality: a **scope guardrail** fires before retrieval (off-topic questions are rejected without making any embedding or database call), and a **confidence guardrail** fires after retrieval (if no chunk scored above a minimum threshold, a fallback response is returned instead of asking GPT-4o to hallucinate from weak evidence).
 - The system prompt instructs GPT-4o: exception policy takes precedence over general policy when they conflict.
 
 ---
@@ -24,7 +25,7 @@ Key design decisions:
 ## Project structure
 
 ```
-iu_rag_assistant/
+uni_rag_assistant/
 ├── app.py                  FastAPI app, GET / + POST /ask
 ├── config.py               Settings, env vars, constants
 ├── requirements.txt
@@ -45,8 +46,9 @@ iu_rag_assistant/
 │   ├── generator.py        GPT-4o call (async) + source extraction
 │   └── guardrails.py       Confidence check + scope detection
 ├── evaluation/
-│   ├── eval_cases.json     13 test cases with expected sources
-│   └── run_eval.py         Eval runner
+│   ├── eval_cases.json     13 test cases (clarification, single-turn, multi-turn, insufficient info, out-of-scope)
+│   ├── run_eval.py         Eval runner
+│   └── demo.txt            Sample session transcript
 └── examples/
     ├── sample_requests.json
     └── sample_responses.json
@@ -63,7 +65,7 @@ cp .env.example .env
 # Edit .env and add your OpenAI API key:
 #   OPENAI_API_KEY=sk-...
 
-# Build the index (embeds all 72 chunks, builds ChromaDB + BM25 index)
+# Build the index (embeds all the chunks, builds ChromaDB + BM25 index)
 python -m src.indexer
 ```
 
@@ -90,7 +92,7 @@ Response shape:
 ```
 
 ```bash
-# Run evaluation (9 test cases including TC09 clarification check — result: 8/8 passing)
+# Run evaluation suite (13 test cases)
 python evaluation/run_eval.py
 ```
 
@@ -121,13 +123,13 @@ Documents are authored with **designed conflicts** (e.g. MBA scholarship exclusi
 
 ### Hybrid retrieval rationale
 
-Dense-only retrieval (embeddings) misses exact policy terminology like "APS certificate" or "anabin database" — these are keyword-specific and won't surface well from semantic search alone. BM25 provides the keyword precision that fills this gap. RRF fuses both without requiring weight tuning.
+Dense-only retrieval (embeddings) misses exact policy terminology like "APS certificate" — these are keyword-specific and won't surface well from semantic search alone. BM25 provides the keyword precision that fills this gap. RRF fuses both without requiring weight tuning.
 
 ### Vector store — development vs production
 
 ChromaDB was chosen for development simplicity: zero infrastructure, local disk persistence, and native metadata pre-filtering. Hybrid retrieval is assembled manually — dense retrieval via ChromaDB, sparse BM25 via a separate pickle file, and RRF fusion written in Python.
 
-For production, the natural migration targets are **Weaviate** (BM25 and BM25F native, hybrid fusion built-in) or **Qdrant** (sparse + dense hybrid, async Python client). Both collapse the separate BM25 index and manual RRF code into a single API call. The retrieval *architecture* — dense + sparse + metadata boost — stays identical; only the implementation layer changes.
+For production, the migration targets are **Weaviate** (BM25 native, hybrid fusion built-in) or **Qdrant** (sparse + dense hybrid, async Python client). Both collapse the separate BM25 index and manual RRF code into a single API call. The retrieval *architecture* — dense + sparse + metadata boost — stays identical; only the implementation layer changes.
 
 The manual implementation was chosen deliberately for this challenge: it makes every retrieval decision explicit and explainable, whereas a native hybrid API call abstracts the mechanism away.
 
@@ -141,11 +143,34 @@ For production with unstructured raw documents (PDFs, scraped pages), **sentence
 
 ### Intent parser
 
-A lightweight rule-based parser extracts intent type, program, region, and audience from the question text. For queries where rule-based matching returns UNKNOWN, a cheap GPT-4o-mini call classifies the intent — adding no latency to the common case. The structured `QueryIntent` object drives both metadata filtering and context assembly.
+A lightweight rule-based parser extracts intent type, program, region, and audience from the question text. For queries where rule-based matching returns UNKNOWN, a single GPT-4o-mini call (temperature=0, max_tokens=20) classifies the intent — adding no latency to the common case. The structured `QueryIntent` object drives both metadata filtering and context assembly.
+
+Two OpenAI models are used: GPT-4o for answer generation, GPT-4o-mini for intent classification fallback.
 
 ### Evidence buckets
 
 Chunks are distributed into four labeled buckets (General / Program-Specific / Exceptions / Process) before being passed to GPT-4o. This structure reduces the model's reasoning burden and produces more consistent answers than a raw chunk dump.
+
+### Multi-turn conversation
+
+Conversation state is maintained via a persistent `UserProfile` per `user_id`. Each detected signal — program, region, audience — is stored on first mention and inherited unconditionally on every subsequent turn via profile fallback (`program = detected or profile.program`). A follow-up like “Does that apply if I’m from India?” on turn 2 inherits `program: msc_ds` from turn 1 automatically.
+
+A `needs_exception` flag is also inherited: once a user is identified as non-EU, exception documents receive a scoring boost on all subsequent turns — not only turns where the user explicitly mentions their region.
+
+Prior conversation turns (last 3) are included in the prompt verbatim. This helps the model maintain continuity for follow-up questions but introduces a known limitation: prior generated answers re-enter as implicit context on subsequent turns. If an earlier answer contained a simplification, that text is treated as evidence rather than output. Production fix: summarise prior turns into a compact user-context block rather than including raw Q/A pairs.
+
+### Guardrails
+
+The system implements guardrails at three stages of the pipeline, each catching a different failure mode:
+
+| Guardrail | Where | Catches | Response |
+|---|---|---|---|
+| Scope check | Before retrieval | Off-topic questions — detects out-of-domain queries before any embedding or database call is made | Canned “I can only help with IU programs” response |
+| Retrieval confidence | After retrieval | Low retrieval scores — if no chunk scored above the minimum threshold, nothing reliable was found | Fallback “I couldn’t find enough information, contact IU admissions directly” |
+| Source grounding | System prompt | Hallucination — model instructed to use only retrieved context and never invent policies, fees, or dates | Model returns “I don’t have enough information” and directs to admissions |
+| Output validation | After generation | Hallucinated citations — model may cite doc_ids not in the retrieved context | Any cited source ID not present in the prompt is silently dropped before the response is returned |
+
+The confidence threshold (0.10) is calibrated to the post-RRF scoring scale rather than raw cosine similarity. A score below this threshold means retrieval found nothing worth passing to the model — not even the program-match or exception boosts fired.
 
 ---
 
@@ -195,16 +220,30 @@ The system prompt explicitly instructs the model: "When general policy and progr
 
 ---
 
+## Evaluation
+
+The system is evaluated against 13 test cases via `evaluation/run_eval.py`, which hits the live API and checks source attribution and answer behaviour. All 13 pass.
+
+| Category | Cases | What is tested |
+|---|---|---|
+| Single-turn eligibility | TC02–TC08, TC11 | Multi-doc retrieval, exception overrides, program comparison, non-EU routing |
+| Multi-turn state | TC09, TC10 | Profile inheritance across 3 turns, mid-conversation program pivot |
+| Clarification behaviour | TC01 | Underspecified question — model must ask rather than assume |
+| Insufficient information | TC12 | No matching docs — model must direct to admissions rather than hallucinate |
+| Out-of-scope | TC13 | Scope guardrail fires, off-topic question deflected gracefully |
+
+---
+
 ## 5. Assumptions & trade-offs
 
-- **In-memory state** — conversation history is stored in a Python dict. No Redis or database. Sessions are lost on restart. Sufficient for challenge scope.
+- **In-memory state** — conversation history and user profiles are stored in a Python dict for challenge scope simplicity. In production, Redis with TTL is the standard choice: it survives server restarts, supports horizontal scaling across multiple instances, and allows session expiry.
 - **Fixed dataset** — 18 documents, 72 chunks. No live data ingestion.
 - **No authentication** — any `user_id` string creates a session.
-- **BM25 on chunks** — the sparse index covers individual chunk texts, not full documents. This improves keyword precision at the cost of some context coherence.
 - **Structural chunking** — documents are split on paragraph boundaries (`\n\n`). Paragraph boundaries in the authored documents align with semantic boundaries by design — in production with unstructured raw documents, sentence-embedding-based semantic chunking would be used instead to detect topic shifts regardless of physical formatting.
-- **`valid_from` metadata field is stored but not used** — In production with periodically updated policy documents, `valid_from` enables filtering out docs not yet in effect. Adding a `valid_until` field and a ChromaDB `$lte`/`$gte` filter would allow automatic expiry of outdated policies without code changes.
-- **Rule-based intent parser** — keyword matching handles the common case; LLM fallback covers novel phrasings with a single cheap GPT-4o-mini call.
-- **Synthetic dataset** — Documents are realistic but simulated, inspired by typical university admissions processes — not actual IU policy.
+- **`valid_from` metadata field is stored but not wired** — Every chunk carries a `valid_from` date in its metadata. In production with periodically updated policy documents, a date-range filter on retrieval would exclude docs not yet in effect and allow automatic expiry of outdated policies via a `valid_until` field — without any document changes.
+- **Confidence threshold manually calibrated** — The retrieval confidence check uses a threshold calibrated to the post-RRF scoring scale, not raw cosine similarity. A score below the threshold means no metadata boost fired — the system found nothing meaningful. The limitation is that this is a hand-tuned constant: if boost values or the scoring pipeline change, the threshold becomes wrong silently. Production improvement: set the threshold dynamically based on observed score distributions rather than a fixed value.
+- **Rule-based intent parser** — keyword matching handles the common case; LLM fallback covers novel phrasings with a single GPT-4o-mini call.
+- **Synthetic dataset** — Documents are realistic but simulated, inspired by typical university admissions processes.
 
 ---
 
@@ -218,14 +257,14 @@ The system prompt explicitly instructs the model: "When general policy and progr
 | Manually authored metadata | LLM-based metadata extraction pipeline for raw PDF/text ingestion in production |
 | No cross-encoder reranking | Add a cross-encoder pass after RRF for higher precision |
 | Fixed dataset | Document ingestion pipeline with re-indexing support |
-| No streaming | Add `StreamingResponse` for better perceived latency |
+| No streaming | `StreamingResponse` would improve perceived UX for a student-facing chatbot — GPT-4o takes 1–3s to generate; streaming lets the answer appear word-by-word rather than all at once after a blank wait |
 | Conversation history includes raw prior answers | Production system would summarise prior turns to avoid reintroducing generated text as implicit evidence |
 | Structural chunking (paragraph boundaries) | Semantic chunking using sentence embeddings and similarity-drop detection — splits on topic shifts rather than physical structure, more robust for unstructured raw documents like PDFs where paragraph breaks don't reliably align with semantic boundaries |
 | No query rewriting | In production with real student queries, an LLM rewriting step would handle colloquial language and resolve ambiguous references before retrieval |
 | Whitespace tokenization for BM25 | Phrase-level tokenization (bigrams for domain concepts like "professional experience pathway" or "credit transfer") — highest-value BM25 upgrade; simple tokenization is sufficient for this clean dataset but misses multi-word concepts |
 | Indexer has no persisted chunk artifact or index manifest | For production, chunk generation should produce a canonical artifact (e.g. JSONL) consumed by both dense and sparse indexers from the same snapshot. An index manifest storing chunk count, doc count, embedding model, tokenizer version, and build timestamp would prevent drift between indexes, enable reproducibility, and make incremental re-indexing of changed documents possible without rebuilding everything. |
-| Source extraction via regex on `Sources:` line — if model omits or reformats the line, fallback returns all candidate sources (over-crediting) | OpenAI structured outputs — define answer and sources as separate fields in a JSON schema, guaranteeing format regardless of model behaviour. Eliminates the regex dependency and the over-crediting fallback. |
+| Source extraction via regex — if model omits or reformats the `Sources:` line, fallback returns all candidate source IDs (over-credits but never fails silently) | OpenAI structured outputs — constrain the model to return `answer` and `sources` as separate JSON fields, eliminating the regex and the fallback entirely |
 | Strict deduplication by doc_id — only the highest-scoring chunk per document is sent to the LLM | Top-N per document (e.g. top 2) would allow multi-faceted documents to contribute more than one chunk when a query requires multiple aspects from the same source. Currently a document covering both IELTS requirements and conditional admission would only contribute its highest-scoring chunk, potentially dropping relevant detail for multi-part questions. |
-| Score-only token budget trimming — lowest-scoring chunks dropped globally with no guarantee of structural coverage | Four production alternatives: (A) bucket-aware trimming — reserve one slot per non-empty evidence bucket before score-filling remaining budget, ensuring general, specific, exception, and process docs are all represented; (B) intent-weighted allocation — divide budget proportionally by query type, e.g. eligibility queries get more exception/specific budget, application queries get more process budget; (C) chunk compression — summarise lower-priority chunks with a short LLM call instead of dropping them, minimising information loss at the cost of extra latency; (D) exact token counting with tiktoken instead of the chars/4 heuristic, which matters when running close to model context limits. |
+| Score-only token budget trimming — lowest-scoring chunks dropped globally with no guarantee of structural coverage | Three production alternatives: (A) **bucket-aware** — guarantee at least one chunk per non-empty evidence type (general, specific, exception, process) before filling remaining budget by score, so no category is entirely crowded out; (B) **intent-weighted** — allocate token budget proportionally by query type (eligibility queries get more exception/specific, application queries get more process); (C) **chunk compression** — summarise lower-priority chunks with a short LLM call instead of dropping them, minimising information loss at the cost of extra latency; (D) **exact token counting** with tiktoken instead of the chars/4 heuristic, which matters when running close to model context limits. |
 
 ---
