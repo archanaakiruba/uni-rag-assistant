@@ -1,0 +1,58 @@
+[
+  {
+    "description": "Eligibility — economics degree into MSc DS",
+    "request": {
+      "user_id": "user_001",
+      "question": "Can I apply for the MSc Data Science if my bachelor's is in economics?"
+    }
+  },
+  {
+    "description": "Scholarship — MBA exclusion",
+    "request": {
+      "user_id": "user_002",
+      "question": "Does the merit scholarship apply to MBA students?"
+    }
+  },
+  {
+    "description": "Credit transfer — Indian degree into MSc DS",
+    "request": {
+      "user_id": "user_003",
+      "question": "Can I transfer credits from my Indian degree into the MSc Data Science?"
+    }
+  },
+  {
+    "description": "Work experience pathway — no degree",
+    "request": {
+      "user_id": "user_004",
+      "question": "I have 5 years of work experience but no university degree. Can I apply?"
+    }
+  },
+  {
+    "description": "Conditional admission — IELTS pending",
+    "request": {
+      "user_id": "user_005",
+      "question": "Can I apply before I get my IELTS result?"
+    }
+  },
+  {
+    "description": "Compare programs — DS vs AI for business background",
+    "request": {
+      "user_id": "user_006",
+      "question": "What's the difference between the MSc Data Science and MSc Applied AI for someone with a business degree?"
+    }
+  },
+  {
+    "description": "Next steps — Nigeria, October start",
+    "request": {
+      "user_id": "user_007",
+      "question": "I'm from Nigeria and want to start in October. What should I do next?"
+    }
+  },
+  {
+    "description": "Multi-turn turn 1 — MSc DS eligibility",
+    "request": {
+      "user_id": "user_008",
+      "question": "Can I apply for the MSc Data Science with a business bachelor's?"
+    }
+  }
+]

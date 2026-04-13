@@ -1,0 +1,139 @@
+[
+  {
+    "id": "TC01",
+    "description": "Underspecified eligibility question — no region, no degree — should trigger clarifying question not a direct answer",
+    "user_id": "test_clarification",
+    "turns": [
+      {
+        "question": "Can I apply for the MSc Data Science?",
+        "expects_clarification": true,
+        "notes": "No region or degree provided — model should ask rather than assume"
+      }
+    ]
+  },
+  {
+    "id": "TC02",
+    "query": "Can I apply for the MSc Data Science if my bachelor's is in economics?",
+    "expected_sources": ["gen_001", "prog_ds_001", "ctx_001"],
+    "expected_facts": ["adjacent degree may qualify", "bridging possible", "quantitative background needed"],
+    "expect_followup": false,
+    "tests": "multi-source eligibility + program-specific override"
+  },
+  {
+    "id": "TC03",
+    "query": "Does the merit scholarship apply to MBA students?",
+    "expected_sources": ["gen_002", "prog_mba_001", "exc_004"],
+    "expected_facts": ["MBA excluded from merit scholarship", "employer sponsorship typical"],
+    "expect_followup": false,
+    "tests": "exception overrides general rule"
+  },
+  {
+    "id": "TC04",
+    "query": "Can I transfer credits from my Indian degree into the MSc Data Science?",
+    "expected_sources": ["gen_003", "prog_ds_001", "exc_001", "exc_003"],
+    "expected_facts": ["30% cap for MSc DS", "non-EU extra verification", "6-8 weeks processing"],
+    "expect_followup": false,
+    "tests": "4-doc chain, non-EU + program-specific credit override"
+  },
+  {
+    "id": "TC05",
+    "query": "I have 5 years of work experience but no university degree. Can I apply?",
+    "expected_sources": ["gen_001", "exc_002"],
+    "expected_facts": ["professional experience pathway exists", "undergrad only", "3 years minimum"],
+    "expect_followup": false,
+    "tests": "exception overrides general admission rule"
+  },
+  {
+    "id": "TC06",
+    "query": "Can I apply before I get my IELTS result?",
+    "expected_sources": ["gen_001", "exc_005"],
+    "expected_facts": ["conditional admission possible", "final cert required before enrollment"],
+    "expect_followup": false,
+    "tests": "exception overrides language requirement"
+  },
+  {
+    "id": "TC07",
+    "query": "What's the difference between the MSc Data Science and MSc Applied AI for someone with a business degree?",
+    "expected_sources": ["prog_ds_001", "prog_ai_001", "ctx_001"],
+    "expected_facts": ["DS more open to adjacent degrees", "AI requires stronger technical background"],
+    "expect_followup": false,
+    "tests": "compare_options intent, two program docs needed"
+  },
+  {
+    "id": "TC08",
+    "query": "I'm from India and want to start in October. What should I do next?",
+    "expected_sources": ["gen_004", "exc_001", "faq_001", "faq_002"],
+    "expected_facts": ["apply early for visa", "certified translations needed", "October intake"],
+    "expect_followup": false,
+    "tests": "next_steps + non-EU + timeline multi-doc"
+  },
+  {
+    "id": "TC09",
+    "turns": [
+      {
+        "turn": 1,
+        "query": "Can I apply for the MSc Data Science with a business bachelor's?"
+      },
+      {
+        "turn": 2,
+        "query": "Does that still work if I'm from India?"
+      },
+      {
+        "turn": 3,
+        "query": "What should I do next?",
+        "expected_sources": ["gen_004", "exc_001", "faq_001", "faq_002"],
+        "expected_facts": ["inherits program + degree from prior turns", "adds non-EU rules"]
+      }
+    ],
+    "tests": "multi-turn state inheritance across 3 turns"
+  },
+  {
+    "id": "TC10",
+    "turns": [
+      {
+        "turn": 1,
+        "query": "What are the entry requirements for the MSc Data Science?"
+      },
+      {
+        "turn": 2,
+        "query": "What about the MSc Applied AI instead?",
+        "notes": "Explicit program pivot — session should switch context from DS to AI"
+      },
+      {
+        "turn": 3,
+        "query": "Given I have a statistics degree, which one should I go for?",
+        "expected_sources": ["prog_ds_001", "prog_ai_001", "ctx_001"],
+        "expected_facts": ["session correctly pivots to AI context", "compare_options uses both programs"]
+      }
+    ],
+    "tests": "mid-conversation program pivot — 'What about this option?' pattern from challenge spec"
+  },
+  {
+    "id": "TC11",
+    "query": "I have a degree from a German university — can I transfer credits into the MSc Data Science, and does the EU process differ from non-EU?",
+    "expected_sources": ["gen_003", "prog_ds_001", "exc_003"],
+    "expected_facts": ["30% cap for MSc DS", "EU student process applies", "no extra certification burden"],
+    "expect_followup": false,
+    "tests": "key qualifier respected — EU student gets EU-appropriate credit transfer answer (contrast to TC04 non-EU path)"
+  },
+  {
+    "id": "TC12",
+    "query": "What is the exact tuition fee instalment schedule for part-time MBA students starting in October 2025?",
+    "expected_sources": [],
+    "expected_facts": [],
+    "expect_followup": false,
+    "expect_no_answer": true,
+    "expected_behaviour": "Model should state it does not have enough information to answer and direct the user to contact IU admissions directly",
+    "tests": "insufficient info — no matching docs, should recommend contacting admissions"
+  },
+  {
+    "id": "TC13",
+    "query": "What's the best recipe for tiramisu?",
+    "expected_sources": [],
+    "expected_facts": [],
+    "expect_followup": false,
+    "expect_out_of_scope": true,
+    "expected_behaviour": "Model should recognise the question is outside its scope (IU admissions) and politely say it can only help with IU-related queries",
+    "tests": "out-of-scope question — unrelated topic, should deflect gracefully"
+  }
+]

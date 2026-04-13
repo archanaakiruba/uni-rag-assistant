@@ -1,0 +1,23 @@
+[
+  {
+    "description": "Eligibility — economics degree into MSc DS",
+    "response": {
+      "answer": "Your economics degree may qualify you for the MSc Data Science at IU, but it depends on your coursework. The program requires a bachelor's in a technical discipline, but applicants from adjacent fields like economics or business analytics can be considered if they can demonstrate substantial quantitative coursework — a minimum of 30 ECTS in mathematics, statistics, or programming as shown by official transcripts. If your economics degree included significant quantitative modules, you have a realistic path. Bridging modules may also be required. I'd recommend preparing a transcript showing your quantitative coursework before applying.",
+      "sources": ["gen_001", "prog_ds_001", "ctx_001"]
+    }
+  },
+  {
+    "description": "Scholarship — MBA exclusion",
+    "response": {
+      "answer": "No — MBA students are explicitly excluded from the IU merit scholarship program. This applies to all MBA tracks (full-time, part-time, online, and campus). The exclusion is a structural policy, not based on merit or academic performance. The typical financing routes for MBA students are employer sponsorship, corporate partner tuition reductions, and installment payment plans. IU can issue invoices directly to employers to facilitate sponsorship.",
+      "sources": ["gen_002", "prog_mba_001", "exc_004"]
+    }
+  },
+  {
+    "description": "Next steps — Nigeria, October start",
+    "response": {
+      "answer": "If you're targeting an October start from Nigeria, you need to apply to IU by February or March at the latest — the visa process alone takes 6–12 weeks, and you'll need to factor in time for document preparation and the admissions review. The recommended timeline is: apply to IU in February/March, receive your unconditional offer in April/May, complete enrollment by May/June, submit your visa application in June/July, and receive visa approval by August. You'll also need certified translations of your academic certificates, a valid passport, proof of financial means (blocked account of approximately €11,208/year), and health insurance valid in Germany.",
+      "sources": ["gen_004", "exc_001", "faq_001", "faq_002"]
+    }
+  }
+]

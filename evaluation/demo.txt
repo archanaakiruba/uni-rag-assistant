@@ -1,0 +1,29 @@
+Q1 — Clarification behaviour (no context yet)
+"Can I apply for the MSc Data Science?"
+
+Q2 — Multi-doc eligibility (establishing context for the chain)
+"Can I apply for the MSc Data Science if my bachelor's is in Economics?"
+
+Q3 — Multi-turn follow-up (inherits context from Q2)
+"Does that still work if I'm from India?"
+
+Q4 — Procedural follow-up (3-turn state inheritance)
+"What should I do next?"
+
+Q5 — Exception overrides general rule (new topic, new session context starts fresh here)
+"Does the merit scholarship apply to MBA students?"
+
+Q6 — Exception overrides admission requirement
+"I have 5 years of work experience but no university degree — can I apply?"
+
+Q7 — Compare options (requires both program docs)
+"What's the difference between the MSc Data Science and MSc Applied AI for someone with a business degree?"
+
+Q8 — Conditional admission exception
+"Can I apply before I get my IELTS result?"
+
+Q9 — Insufficient Info
+"What is the exact tuition fee instalment schedule for part-time MBA students starting in October 2025?"
+
+Q10 — Out-of-scope guardrail
+"What's the best recipe for tiramisu?"

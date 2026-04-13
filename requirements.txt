@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+openai
+chromadb
+rank-bm25
+python-dotenv
+pydantic
+httpx
+pytest
+numpy
+aiofiles
